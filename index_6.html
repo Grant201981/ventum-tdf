@@ -1,0 +1,498 @@
+<!--
+  Ventum House — Tour de France 2026 Fantasy League (team-builder edition)
+  Views via URL hash:
+    #/       -> Build your team (phone entry; what the QR points to)
+    #/board  -> Big-screen leaderboard (open on the store screen)
+    #/admin  -> Staff: lock entries, score riders, export contacts (PIN protected)
+
+  Entries live in SHARED storage so all phones + the big screen share one
+  leaderboard. Contact details (email/phone) are captured but NEVER shown on
+  the public leaderboard — they are visible only in the PIN-protected admin
+  export. Note: shared storage is readable by anyone with the link, so treat
+  it as a casual comp list, not a secure database.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ventum House · Tour de France 2026 Fantasy League</title>
+<style>
+  /* fonts load from the system — no external dependency, so the app loads instantly anywhere */
+  :root{
+    --ink:#0c0d10;--ink-2:#15171c;--card:#1b1e25;--card-2:#21242c;--line:#2c313b;
+    --text:#f4f4f1;--muted:#9aa0ab;
+    --jaune:#ffd400;--vert:#2ecf6b;--pois:#ff4d5e;--blanc:#e9eef5;--blue:#5aa7ff;
+    --jaune-dim:#3a3413;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--ink);color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .mast h1,.hero h2,.budget .val,.btn,.board-head h2,.rank,.score{font-weight:800;letter-spacing:.01em}
+  body{min-height:100vh;background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(255,212,0,.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(46,207,107,.06), transparent 55%), var(--ink);}
+  .wrap{max-width:600px;margin:0 auto;padding:26px 18px 70px}
+  .board-wrap{max-width:1320px;margin:0 auto;padding:34px 40px}
+
+  .mast{display:flex;align-items:center;gap:14px}
+  .mast .bars{display:flex;gap:4px}
+  .mast .bars span{width:6px;height:34px;border-radius:2px;display:block}
+  .b-jaune{background:var(--jaune)}.b-vert{background:var(--vert)}.b-pois{background:var(--pois)}.b-blanc{background:var(--blanc)}
+  .mast h1{font-family:'Anton',sans-serif;font-size:1.45rem;letter-spacing:.04em;line-height:.95;text-transform:uppercase}
+  .mast h1 small{display:block;font-family:'Archivo';font-weight:700;font-size:.62rem;letter-spacing:.34em;color:var(--jaune);margin-top:5px}
+
+  .hero{margin:22px 0 22px}
+  .hero .kicker{font-size:.7rem;letter-spacing:.32em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .hero h2{font-family:'Anton',sans-serif;font-size:2.5rem;line-height:.92;text-transform:uppercase;margin:8px 0 10px}
+  .hero h2 em{font-style:normal;color:var(--jaune)}
+  .hero p{color:var(--muted);font-size:.95rem;line-height:1.5;max-width:50ch}
+
+  .card{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--line);border-radius:16px;padding:20px}
+  .card + .card{margin-top:16px}
+  .sec-title{font-size:.74rem;letter-spacing:.18em;text-transform:uppercase;color:var(--jaune);font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:9px}
+
+  label.fld{display:block;margin-bottom:15px}
+  label.fld .lab{display:flex;align-items:center;gap:9px;font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:7px}
+  .dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+  .dot.jaune{background:var(--jaune)}.dot.vert{background:var(--vert)}.dot.pois{background:radial-gradient(circle at 50% 50%,var(--pois) 38%,#fff 39% 55%,var(--pois) 56%)}.dot.blanc{background:var(--blanc)}.dot.blue{background:var(--blue)}
+
+  input,select{width:100%;padding:13px 14px;background:var(--ink-2);border:1px solid var(--line);border-radius:10px;color:var(--text);font-family:'Archivo';font-size:1rem;outline:none;transition:border-color .15s,box-shadow .15s}
+  select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' stroke='%239aa0ab' stroke-width='2' fill='none'/></svg>");background-repeat:no-repeat;background-position:right 14px center}
+  input::placeholder{color:#5d636e}
+  input:focus,select:focus{border-color:var(--jaune);box-shadow:0 0 0 3px rgba(255,212,0,.14)}
+  .hint{font-size:.74rem;color:var(--muted);margin-top:6px}
+
+  .pickrow{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+  .pickrow .role{flex:0 0 86px;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;display:flex;align-items:center;gap:7px}
+  .pickrow select{flex:1}
+
+  .budget{display:flex;align-items:center;justify-content:space-between;background:var(--ink-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:4px 0 8px;position:sticky;top:8px;z-index:5}
+  .budget .lbl{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .budget .val{font-family:'Anton',sans-serif;font-size:1.7rem}
+  .budget .val.ok{color:var(--vert)} .budget .val.over{color:var(--pois)}
+  .meter{height:7px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:10px}
+  .meter > i{display:block;height:100%;background:var(--jaune);transition:width .25s,background .25s}
+  .meter > i.over{background:var(--pois)}
+
+  .btn{display:block;width:100%;text-align:center;cursor:pointer;border:none;background:var(--jaune);color:#1a1500;font-family:'Anton',sans-serif;font-size:1.15rem;letter-spacing:.06em;text-transform:uppercase;padding:16px;border-radius:12px;transition:transform .08s,filter .15s}
+  .btn:hover{filter:brightness(1.05)} .btn:active{transform:translateY(1px)}
+  .btn[disabled]{opacity:.4;cursor:not-allowed}
+  .btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);font-family:'Archivo';font-weight:700;font-size:.85rem;letter-spacing:.1em;padding:12px}
+  .btn.danger{background:transparent;border:1px solid rgba(255,77,94,.45);color:#ffc6cc;font-family:'Archivo';font-weight:700}
+
+  .msg{margin-top:14px;padding:13px 14px;border-radius:10px;font-size:.9rem;line-height:1.45;display:none}
+  .msg.ok{display:block;background:rgba(46,207,107,.12);border:1px solid rgba(46,207,107,.4);color:#bff3d2}
+  .msg.err{display:block;background:rgba(255,77,94,.12);border:1px solid rgba(255,77,94,.4);color:#ffc6cc}
+  .msg.info{display:block;background:rgba(255,212,0,.10);border:1px solid rgba(255,212,0,.35);color:#ffe680}
+
+  .footnote{margin-top:24px;text-align:center;color:#5d636e;font-size:.72rem;line-height:1.5}
+  .navmini{display:flex;gap:8px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+  .navmini a{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:#5d636e;text-decoration:none;border:1px solid var(--line);padding:7px 12px;border-radius:999px}
+  .navmini a:hover{color:var(--text);border-color:var(--muted)}
+  .locked-banner{background:var(--jaune-dim);border:1px solid var(--jaune);color:var(--jaune);border-radius:12px;padding:14px;text-align:center;font-weight:700;font-size:.9rem;margin-bottom:16px}
+
+  /* leaderboard */
+  .board-head{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:18px;margin-bottom:24px}
+  .board-head h2{font-family:'Anton',sans-serif;font-size:clamp(2.4rem,5vw,4rem);line-height:.9;text-transform:uppercase}
+  .board-head h2 em{font-style:normal;color:var(--jaune)}
+  .board-status{text-align:right;color:var(--muted);font-size:.85rem}
+  .board-status b{color:var(--jaune)}
+  table.lb{width:100%;border-collapse:collapse}
+  table.lb th{font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-align:left;padding:0 16px 12px;font-weight:700}
+  table.lb th.r,table.lb td.r{text-align:right}
+  table.lb td{padding:15px 16px;border-top:1px solid var(--line);font-size:clamp(1rem,1.5vw,1.4rem);vertical-align:middle}
+  table.lb tr.row td:first-child{border-top-left-radius:12px;border-bottom-left-radius:12px}
+  table.lb tr.row td:last-child{border-top-right-radius:12px;border-bottom-right-radius:12px}
+  .rank{font-family:'Anton',sans-serif;color:var(--muted);width:1%;white-space:nowrap}.rank .n{font-size:1.3em}
+  tr.top1 td{background:linear-gradient(90deg,rgba(255,212,0,.16),transparent 70%)} tr.top1 .rank .n{color:var(--jaune)}
+  tr.top2 td{background:linear-gradient(90deg,rgba(233,238,245,.08),transparent 70%)}
+  tr.top3 td{background:linear-gradient(90deg,rgba(205,127,50,.10),transparent 70%)}
+  .tname{font-weight:800}.powner{color:var(--muted);font-size:.7em;font-weight:600;letter-spacing:.02em}
+  .roster{color:var(--muted);font-size:.74em}
+  .rchip{display:inline-flex;align-items:center;gap:5px;margin-right:10px;white-space:nowrap}
+  .cap{color:var(--jaune);font-weight:800}
+  .score{font-family:'Anton',sans-serif;font-size:1.5em;color:var(--jaune)}
+  .pending{color:var(--muted);font-family:'Archivo';font-weight:700;font-size:.6em;letter-spacing:.1em}
+  .empty{text-align:center;color:var(--muted);padding:60px 20px;font-size:1.1rem}
+
+  /* admin scoring */
+  .stat{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:.92rem}
+  .stat:last-child{border-bottom:none}.stat b{color:var(--jaune)}
+  .score-grid{display:grid;grid-template-columns:1fr 70px;gap:8px 12px;align-items:center}
+  .score-grid .rn{font-size:.9rem}.score-grid .rn span{color:var(--muted);font-size:.78em}
+  .score-grid input{padding:9px 10px;text-align:center}
+  .rolehdr{grid-column:1/3;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--jaune);font-weight:700;margin-top:10px}
+  .pin-row{display:flex;gap:10px}.pin-row input{flex:1}.pin-row .btn{width:auto;padding:13px 22px}
+  .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,212,0,.3);border-top-color:var(--jaune);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .loading{text-align:center;color:var(--muted);padding:40px}
+</style>
+
+<div id="app"><div class="wrap loading"><span class="spin"></span> Loading…</div></div>
+
+<script>
+/* ===================== CONFIG (edit before going live) ===================== */
+const ADMIN_PIN = "2014";     // change to your own PIN
+const BUDGET    = 100;        // squad credit cap
+const CAPTAIN_NOTE = "Captain scores double points.";
+
+/* Squad shape: how many riders per role */
+const SLOTS = [
+  {role:"gc",       n:1, cls:"jaune", label:"Leader (GC)"},
+  {role:"climber",  n:2, cls:"pois",  label:"Climber"},
+  {role:"sprinter", n:2, cls:"vert",  label:"Sprinter"},
+  {role:"allround", n:1, cls:"blue",  label:"All-rounder"},
+];
+
+/* Rider pool — name, role, price (credits). Refresh names/prices nearer the race. */
+const RIDERS = [
+  // GC
+  {n:"Tadej Pogačar",role:"gc",p:34},{n:"Jonas Vingegaard",role:"gc",p:32},{n:"Remco Evenepoel",role:"gc",p:28},
+  {n:"Primož Roglič",role:"gc",p:22},{n:"João Almeida",role:"gc",p:18},{n:"Carlos Rodríguez",role:"gc",p:16},{n:"Felix Gall",role:"gc",p:14},
+  // Climbers
+  {n:"Lenny Martinez",role:"climber",p:16},{n:"Adam Yates",role:"climber",p:15},{n:"Tom Pidcock",role:"climber",p:14},
+  {n:"Santiago Buitrago",role:"climber",p:13},{n:"Enric Mas",role:"climber",p:12},{n:"Egan Bernal",role:"climber",p:12},{n:"Ben O'Connor",role:"climber",p:11},
+  // Sprinters
+  {n:"Wout van Aert",role:"sprinter",p:24},{n:"Jasper Philipsen",role:"sprinter",p:22},{n:"Jonathan Milan",role:"sprinter",p:21},
+  {n:"Tim Merlier",role:"sprinter",p:20},{n:"Biniam Girmay",role:"sprinter",p:18},{n:"Dylan Groenewegen",role:"sprinter",p:14},{n:"Arnaud De Lie",role:"sprinter",p:13},
+  // All-rounders
+  {n:"Mathieu van der Poel",role:"allround",p:24},{n:"Mads Pedersen",role:"allround",p:18},{n:"Julian Alaphilippe",role:"allround",p:12},
+  {n:"Ben Healy",role:"allround",p:11},{n:"Kévin Vauquelin",role:"allround",p:10},{n:"Neilson Powless",role:"allround",p:9},
+];
+const PRICE = Object.fromEntries(RIDERS.map(r=>[r.n,r.p]));
+const ROLECLS = Object.fromEntries(SLOTS.map(s=>[s.role,s.cls]));
+
+const KEY_PREFIX="tdf26:team:";
+const CONFIG_KEY="tdf26:config";
+
+/* ===================== shared backend (Supabase) =====================
+   Free, no credit card, and works cleanly with a GitHub Pages–hosted page.
+   Paste your two Supabase values below (in Supabase: Project Settings → API):
+     SUPABASE_URL  e.g. https://abcdwxyz.supabase.co
+     SUPABASE_KEY  the public "anon" key (a long token)
+   Until BOTH are set the app runs LOCAL-ONLY (previews fine, no syncing across devices). */
+const SUPABASE_URL = "https://vvsuluowsfagxpczszbs.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2c3VsdW93c2ZhZ3hwY3pzemJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTQ5NDUsImV4cCI6MjA5NzMzMDk0NX0.Gqws2K7jkO7g4aylfVyprMt_cSe5j6XrY1xC5uYEjyM";
+
+const SB_OK = /^https:\/\/.+\.supabase\.co/.test(SUPABASE_URL) && SUPABASE_KEY.length>30 && SUPABASE_URL.indexOf("PASTE")<0 && SUPABASE_KEY.indexOf("PASTE")<0;
+const MEM = {teams:{}, config:null};
+const DEFAULT_CFG = {locked:false,scored:false,riderPoints:{}};
+function withTimeout(pr,ms){return Promise.race([pr,new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),ms))]);}
+function sbHdr(extra){ return Object.assign({apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY,"Content-Type":"application/json"}, extra||{}); }
+async function sbSelect(filter){ const r=await withTimeout(fetch(`${SUPABASE_URL}/rest/v1/store?select=k,v${filter?"&"+filter:""}`,{headers:sbHdr(),cache:"no-store"}),8000); if(!r.ok) throw new Error("select"); return await r.json(); }
+async function sbUpsert(k,v){ const r=await withTimeout(fetch(`${SUPABASE_URL}/rest/v1/store`,{method:"POST",headers:sbHdr({Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({k,v})}),8000); if(!r.ok) throw new Error("upsert"); }
+async function sbDelete(filter){ await withTimeout(fetch(`${SUPABASE_URL}/rest/v1/store?${filter}`,{method:"DELETE",headers:sbHdr()}),8000); }
+async function sbInsertContact(c){ if(!SB_OK){ (MEM.contacts=MEM.contacts||[]).push(c); return true; }
+  try{ const r=await withTimeout(fetch(`${SUPABASE_URL}/rest/v1/contacts`,{method:"POST",headers:sbHdr({Prefer:"return=minimal"}),body:JSON.stringify(c)}),8000); return r.ok; }catch(e){ return false; } }
+
+async function getConfig(){ if(!SB_OK) return MEM.config?JSON.parse(JSON.stringify(MEM.config)):{...DEFAULT_CFG};
+  try{ const rows=await sbSelect("k=eq.config"); return (rows[0]&&rows[0].v)?rows[0].v:{...DEFAULT_CFG}; }catch(e){ return {...DEFAULT_CFG}; } }
+async function setConfig(c){ if(!SB_OK){ MEM.config=c; return true; }
+  try{ await sbUpsert("config",c); return true; }catch(e){ return false; } }
+async function getTeams(){ if(!SB_OK) return Object.values(MEM.teams);
+  try{ const rows=await sbSelect("k=like.team:*"); return rows.map(r=>r.v).filter(Boolean); }catch(e){ return []; } }
+async function saveTeam(t){ if(!SB_OK){ MEM.teams[t.id]=t; return true; }
+  try{ await sbUpsert("team:"+t.id,t); return true; }catch(e){ return false; } }
+async function resetAll(){ if(!SB_OK){ MEM.teams={}; MEM.config=null; return; }
+  try{ await sbDelete("k=like.team:*"); await sbUpsert("config",DEFAULT_CFG); }catch(e){} }
+async function deleteTeam(id){ if(!SB_OK){ delete MEM.teams[id]; return true; }
+  try{ await sbDelete("k=eq.team:"+id); return true; }catch(e){ return false; } }
+
+function teamScore(t,riderPoints){
+  if(!riderPoints||Object.keys(riderPoints).length===0) return null;
+  let s=0;
+  t.riders.forEach(n=>{ s += Number(riderPoints[n]||0); });
+  if(t.captain) s += Number(riderPoints[t.captain]||0); // captain doubled
+  return s;
+}
+function rankTeams(teams,cfg){
+  const rp = cfg.scored ? cfg.riderPoints : null;
+  return teams.map(t=>({...t,_score:teamScore(t,rp)}))
+    .sort((a,b)=>{ if(a._score==null||b._score==null) return (a.team||"").localeCompare(b.team||""); return b._score-a._score; });
+}
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const firstLast=n=>{const p=(n||"").trim().split(/\s+/);return p.length>1?p[0]+" "+p[p.length-1][0]+".":n;};
+function standingsHTML(teams,rp){
+  if(!teams.length) return `<div class="hint">No teams entered yet.</div>`;
+  const has=rp&&Object.keys(rp).length>0;
+  const ranked=teams.map(t=>{let s=0;t.riders.forEach(n=>s+=Number(rp[n]||0));if(t.captain)s+=Number(rp[t.captain]||0);return {t,s};})
+    .sort((a,b)=>b.s-a.s||(a.t.team||"").localeCompare(b.t.team||""));
+  return ranked.map((r,i)=>`<div class="stat"><span><b style="color:var(--jaune);font-family:'Anton';margin-right:8px">${i+1}</b>${esc(r.t.team)} <span style="color:var(--muted);font-size:.8em">${esc(firstLast(r.t.name))}</span></span><b>${has?r.s:"—"}</b></div>`).join("");
+}
+
+function manageHTML(teams){
+  if(!teams.length) return `<div class="hint">No teams entered yet.</div>`;
+  return teams.slice().sort((a,b)=>(a.team||"").localeCompare(b.team||""))
+    .map(t=>`<div class="stat"><span>${esc(t.team)} <span style="color:var(--muted);font-size:.8em">${esc(firstLast(t.name))}</span></span><button class="btn danger" data-del="${esc(t.id)}" data-team="${esc(t.team)}" style="width:auto;padding:7px 14px;font-size:.8rem;margin:0">Delete</button></div>`).join("");
+}
+
+/* ===================== router ===================== */
+function route(){return location.hash.replace(/^#\/?/,"").split("?")[0]||""}
+let boardTimer=null; function clearTimers(){if(boardTimer){clearInterval(boardTimer);boardTimer=null}}
+window.addEventListener("hashchange",render); if(document.readyState==="loading"){window.addEventListener("DOMContentLoaded",render);}else{render();}
+async function render(){clearTimers();const r=route();if(r==="board")return renderBoard();if(r==="admin")return renderAdmin();return renderEntry();}
+
+/* ===================== VIEW 1 — TEAM BUILDER ===================== */
+function riderOptions(role){
+  return RIDERS.filter(r=>r.role===role).sort((a,b)=>b.p-a.p)
+    .map(r=>`<option value="${esc(r.n)}">${esc(r.n)} — ${r.p}cr</option>`).join("");
+}
+async function renderEntry(){
+  const app=document.getElementById("app");
+  const cfg=await getConfig();
+
+  // build the pick rows
+  let rows="",idx=0;
+  SLOTS.forEach(s=>{ for(let i=0;i<s.n;i++){ const id="pk-"+idx++;
+    rows+=`<div class="pickrow">
+      <span class="role"><span class="dot ${s.cls}"></span>${s.label}${s.n>1?" "+(i+1):""}</span>
+      <select class="pick" data-role="${s.role}" id="${id}"><option value="">Choose…</option>${riderOptions(s.role)}</select>
+    </div>`; } });
+
+  app.innerHTML=`<div class="wrap">
+    ${masthead()}
+    <div class="hero">
+      <div class="kicker">Ventum House · 4–26 July</div>
+      <h2>Build Your <em>Team</em></h2>
+      <p>Pick a 6-rider squad inside a ${BUDGET}-credit cap, name your captain for double points, and ride up the leaderboard all Tour long — with prizes for the top finishers.</p>
+    </div>
+
+    ${cfg.locked?`<div class="locked-banner">🔒 Teams are locked — the race is on. Follow the leaderboard on the big screen in store.</div>`:`
+    <div class="card">
+      <div class="sec-title"><span class="dot jaune"></span>Your details</div>
+      <label class="fld"><span class="lab">Team name</span><input id="f-team" maxlength="32" placeholder="e.g. Ventum Velociraptors"></label>
+      <label class="fld"><span class="lab">Your name</span><input id="f-name" maxlength="40" placeholder="First &amp; last name" autocomplete="name"></label>
+      <label class="fld"><span class="lab">Email</span><input id="f-email" type="email" maxlength="80" placeholder="you@email.com" autocomplete="email"></label>
+      <label class="fld"><span class="lab">Mobile number</span><input id="f-phone" type="tel" maxlength="24" placeholder="05x xxx xxxx" autocomplete="tel"></label>
+      <span class="hint">Your contact details are private to Ventum House staff and never shown on the leaderboard.</span>
+    </div>
+
+    <div class="card">
+      <div class="sec-title"><span class="dot pois"></span>Your squad</div>
+      <div class="budget">
+        <div><div class="lbl">Budget left</div><div class="val ok" id="bud">${BUDGET}</div></div>
+        <div style="flex:1;margin-left:18px"><div class="lbl" style="text-align:right" id="budtxt">0 / ${BUDGET} credits spent</div><div class="meter"><i id="meter" style="width:0%"></i></div></div>
+      </div>
+      ${rows}
+      <label class="fld" style="margin-top:8px"><span class="lab">⭐ Captain — ${CAPTAIN_NOTE}</span>
+        <select id="f-captain"><option value="">Pick your squad first…</option></select></label>
+      <button class="btn" id="submit" disabled>Lock in my team</button>
+      <div class="msg" id="msg"></div>
+    </div>`}
+
+    <div class="navmini"><a href="#/board">📺 Leaderboard</a><a href="#/admin">⚙ Admin</a></div>
+    <div class="footnote">Ventum House · Be your fastest self.</div>
+  </div>`;
+
+  if(cfg.locked) return;
+  document.querySelectorAll(".pick").forEach(s=>s.addEventListener("change",recalc));
+  document.getElementById("submit").addEventListener("click",submitTeam);
+  recalc();
+}
+
+function currentPicks(){return [...document.querySelectorAll(".pick")].map(s=>s.value).filter(Boolean);}
+function recalc(){
+  const picks=currentPicks();
+  const spent=picks.reduce((a,n)=>a+(PRICE[n]||0),0);
+  const left=BUDGET-spent;
+  const budEl=document.getElementById("bud"),meter=document.getElementById("meter");
+  budEl.textContent=left; budEl.className="val "+(left<0?"over":"ok");
+  document.getElementById("budtxt").textContent=spent+" / "+BUDGET+" credits spent";
+  const pct=Math.min(100,Math.round(spent/BUDGET*100));
+  meter.style.width=pct+"%"; meter.className=left<0?"over":"";
+
+  // duplicates within a role
+  const dup = picks.length!==new Set(picks).size;
+
+  // prevent the same rider being picked in another same-role slot:
+  // disable an option in a sibling select if it's already chosen elsewhere
+  const byRole={};
+  document.querySelectorAll(".pick").forEach(sel=>{ (byRole[sel.dataset.role]=byRole[sel.dataset.role]||[]).push(sel); });
+  Object.values(byRole).forEach(group=>{
+    const chosen=group.map(s=>s.value).filter(Boolean);
+    group.forEach(sel=>{ Array.from(sel.options).forEach(opt=>{
+      if(!opt.value) return;
+      opt.disabled = chosen.includes(opt.value) && sel.value!==opt.value;
+    }); });
+  });
+
+  // rebuild captain options from chosen riders
+  const cap=document.getElementById("f-captain"); const prev=cap.value;
+  if(picks.length){ cap.innerHTML=`<option value="">Choose captain…</option>`+picks.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join(""); if(picks.includes(prev))cap.value=prev; }
+  else cap.innerHTML=`<option value="">Pick your squad first…</option>`;
+
+  const full = picks.length===SLOTS.reduce((a,s)=>a+s.n,0);
+  document.getElementById("submit").disabled = !(full && left>=0 && !dup);
+}
+
+function validEmail(e){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);}
+async function submitTeam(){
+  const msg=document.getElementById("msg"),btn=document.getElementById("submit");
+  const team=document.getElementById("f-team").value.trim();
+  const name=document.getElementById("f-name").value.trim();
+  const email=document.getElementById("f-email").value.trim();
+  const phone=document.getElementById("f-phone").value.trim();
+  const captain=document.getElementById("f-captain").value;
+  const riders=currentPicks();
+  msg.className="msg";
+  if(!team){msg.className="msg err";msg.textContent="Give your team a name.";return;}
+  if(!name){msg.className="msg err";msg.textContent="Enter your name.";return;}
+  if(!validEmail(email)){msg.className="msg err";msg.textContent="Enter a valid email address.";return;}
+  if(phone.replace(/\D/g,"").length<7){msg.className="msg err";msg.textContent="Enter a valid mobile number.";return;}
+  if(new Set(riders).size!==riders.length){msg.className="msg err";msg.textContent="You've picked the same rider twice — choose different riders.";return;}
+  if(!captain){msg.className="msg err";msg.textContent="Pick your captain.";return;}
+
+  const cfg=await getConfig();
+  if(cfg.locked){msg.className="msg info";msg.textContent="Teams just locked — the race has started.";return;}
+
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  const entry={id,team,name,riders,captain,ts:Date.now()};
+  const ok=await saveTeam(entry);
+  if(ok){ try{ await sbInsertContact({team_id:id,team_name:team,name,email,mobile:phone}); }catch(e){} }
+  btn.disabled=false;btn.textContent="Lock in my team";
+  if(ok){
+    msg.className="msg ok";
+    msg.innerHTML=`✅ <b>${esc(team)}</b> is in the race! Watch the leaderboard on the store screen — good luck.`;
+    ["f-team","f-name","f-email","f-phone"].forEach(i=>document.getElementById(i).value="");
+    document.querySelectorAll(".pick").forEach(s=>s.value=""); recalc();
+  } else {msg.className="msg err";msg.textContent="Couldn't save — please try again.";}
+}
+
+/* ===================== VIEW 2 — LEADERBOARD ===================== */
+async function renderBoard(){
+  const app=document.getElementById("app");
+  app.innerHTML=`<div class="board-wrap">
+    <div class="board-head"><div>${masthead(true)}<h2>Fantasy <em>Leaderboard</em></h2></div>
+    <div class="board-status">Loading…</div></div>
+    <div class="empty">Loading standings…</div>
+    <div class="navmini" style="justify-content:flex-start;margin-top:24px"><a href="#/">＋ Build a team</a><a href="#/admin">⚙ Admin</a></div>
+  </div>`;
+  await drawBoard();
+  boardTimer=setInterval(drawBoard,20000);
+}
+async function drawBoard(){
+  const app=document.getElementById("app");
+  const [cfg,teams]=await Promise.all([getConfig(),getTeams()]);
+  const ranked=rankTeams(teams,cfg);
+  const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const status=cfg.scored?`<b>SCORES LIVE</b>`:(cfg.locked?`<b>RACE ON</b> · teams locked`:`Teams open · build yours in store`);
+
+  let body;
+  if(!ranked.length){ body=`<div class="empty">No teams yet — scan the QR code in store to build your squad 🚴</div>`; }
+  else{
+    body=`<table class="lb"><thead><tr><th>#</th><th>Team</th><th>Squad</th><th class="r">Pts</th></tr></thead><tbody>
+    ${ranked.map((t,i)=>{const rk=i+1,top=rk===1?"top1":rk===2?"top2":rk===3?"top3":"";
+      const squad=t.riders.map(n=>{const isCap=n===t.captain;return `<span class="rchip"><span class="dot ${ROLECLS[(RIDERS.find(r=>r.n===n)||{}).role]||'blanc'}"></span><span class="${isCap?'cap':''}">${esc(n)}${isCap?' ⭐':''}</span></span>`;}).join("");
+      const sc=cfg.scored?`<span class="score">${t._score}</span>`:`<span class="pending">PENDING</span>`;
+      return `<tr class="row ${top}"><td class="rank"><span class="n">${rk}</span></td>
+        <td><div class="tname">${esc(t.team)}</div><div class="powner">${esc(firstLast(t.name))}</div></td>
+        <td class="roster">${squad}</td><td class="r">${sc}</td></tr>`;}).join("")}
+    </tbody></table>`;
+  }
+  app.innerHTML=`<div class="board-wrap">
+    <div class="board-head"><div>${masthead(true)}<h2>Fantasy <em>Leaderboard</em></h2></div>
+    <div class="board-status">${status}<br><span style="font-size:.8em">${ranked.length} teams · updated ${now}</span></div></div>
+    ${body}
+    <div class="navmini" style="justify-content:flex-start;margin-top:24px"><a href="#/">＋ Build a team</a><a href="#/admin">⚙ Admin</a></div>
+  </div>`;
+}
+
+/* ===================== VIEW 3 — ADMIN ===================== */
+let adminUnlocked=false;
+async function renderAdmin(){
+  const app=document.getElementById("app");
+  if(!adminUnlocked){
+    app.innerHTML=`<div class="wrap">${masthead()}
+      <div class="hero"><div class="kicker">Staff only</div><h2>Admin</h2><p>Lock teams at the start, score riders to update the leaderboard, and export the entrant contact list.</p></div>
+      <div class="card"><label class="fld"><span class="lab">Enter PIN</span>
+        <div class="pin-row"><input id="pin" inputmode="numeric" placeholder="••••"><button class="btn" id="unlock">Enter</button></div></label>
+        <div class="msg" id="amsg"></div></div>
+      <div class="navmini"><a href="#/">Entry</a><a href="#/board">Leaderboard</a></div></div>`;
+    document.getElementById("unlock").addEventListener("click",()=>{
+      if(document.getElementById("pin").value.trim()===ADMIN_PIN){adminUnlocked=true;renderAdmin();}
+      else{const m=document.getElementById("amsg");m.className="msg err";m.textContent="Wrong PIN.";}
+    });
+    return;
+  }
+  const [cfg,teams]=await Promise.all([getConfig(),getTeams()]);
+  const rp=cfg.riderPoints||{};
+  // score grid grouped by role
+  let grid="";
+  SLOTS.forEach(s=>{ grid+=`<div class="rolehdr">${s.label}</div>`;
+    RIDERS.filter(r=>r.role===s.role).sort((a,b)=>b.p-a.p).forEach(r=>{
+      grid+=`<div class="rn">${esc(r.n)} <span>(${r.p}cr)</span></div><input type="number" data-rider="${esc(r.n)}" value="${rp[r.n]!=null?rp[r.n]:""}" placeholder="0">`;
+    });
+  });
+
+  app.innerHTML=`<div class="wrap">${masthead()}
+    <div class="hero"><div class="kicker">Staff control</div><h2>Admin</h2></div>
+    <div class="card">
+      <div class="stat"><span>Teams entered</span><b>${teams.length}</b></div>
+      <div class="stat"><span>Entry status</span><b>${cfg.locked?"🔒 Locked":"🟢 Open"}</b></div>
+      <div class="stat"><span>Scoring</span><b>${cfg.scored?"Live on leaderboard":"Hidden (PENDING)"}</b></div>
+      <button class="btn ghost" id="toggleLock" style="margin-top:14px">${cfg.locked?"Re-open teams":"Lock teams (start of race)"}</button>
+      <p class="hint" style="margin-top:12px">Entrant contact details are stored privately and can't be read from this page. View or export them in your Supabase dashboard → Table Editor → <b>contacts</b>.</p>
+    </div>
+
+    <div class="card">
+      <div class="sec-title"><span class="dot jaune"></span>Score riders</div>
+      <p class="hint" style="margin-bottom:14px">Enter each rider's points (update weekly or at the end). Team total = sum of its riders, with the ⭐ captain counted twice. Tick the box below to reveal scores on the leaderboard.</p>
+      <div class="score-grid">${grid}</div>
+      <label class="fld" style="display:flex;align-items:center;gap:10px;margin:18px 0 0"><input type="checkbox" id="scoredChk" ${cfg.scored?"checked":""} style="width:auto"> <span class="lab" style="margin:0">Show scores on leaderboard</span></label>
+      <button class="btn" id="saveScores" style="margin-top:14px">Save scores</button>
+      <div class="msg" id="amsg2"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title"><span class="dot vert"></span>Current standings</div>
+      <p class="hint" style="margin-bottom:10px">For whoever's scoring — updates the moment you save, even while the public board is still hidden.</p>
+      <div id="standingsBody">${standingsHTML(teams,rp)}</div>
+    </div>
+
+    <div class="card"><div class="sec-title"><span class="dot pois"></span>Manage teams</div>
+      <p class="hint" style="margin-bottom:10px">Remove a single entry (e.g. a test or duplicate). Asks for the PIN each time.</p>
+      <div id="manageBody">${manageHTML(teams)}</div></div>
+
+    <div class="card"><div class="sec-title" style="color:#ffc6cc">Danger zone</div>
+      <button class="btn danger" id="reset">Reset league (delete all teams &amp; scores)</button></div>
+    <div class="navmini"><a href="#/">Entry</a><a href="#/board">Leaderboard</a></div>
+  </div>`;
+
+  document.getElementById("toggleLock").addEventListener("click",async e=>{e.target.disabled=true;const c=await getConfig();c.locked=!c.locked;await setConfig(c);renderAdmin();});
+  document.getElementById("saveScores").addEventListener("click",async ()=>{
+    const m=document.getElementById("amsg2");
+    const pts={}; document.querySelectorAll("[data-rider]").forEach(inp=>{const v=inp.value.trim();if(v!=="")pts[inp.dataset.rider]=Number(v);});
+    const c=await getConfig(); c.riderPoints=pts; c.scored=document.getElementById("scoredChk").checked; await setConfig(c);
+    m.className="msg ok";m.textContent=c.scored?"Scores saved — leaderboard updated.":"Scores saved (hidden until you tick 'show scores').";
+    const sb=document.getElementById("standingsBody"); if(sb) sb.innerHTML=standingsHTML(teams,pts);
+  });
+  document.getElementById("reset").addEventListener("click",async ()=>{
+    const pin=prompt("Enter admin PIN to delete ALL teams and scores:");
+    if(pin===null) return;
+    if(pin.trim()!==ADMIN_PIN){ alert("Wrong PIN — nothing deleted."); return; }
+    if(!confirm("Delete ALL teams and scores? This cannot be undone.")) return;
+    await resetAll(); renderAdmin();
+  });
+  document.querySelectorAll("[data-del]").forEach(btn=>btn.addEventListener("click",async ()=>{
+    const id=btn.dataset.del, nm=btn.dataset.team||"this team";
+    const pin=prompt(`Enter admin PIN to delete "${nm}":`);
+    if(pin===null) return;
+    if(pin.trim()!==ADMIN_PIN){ alert("Wrong PIN — nothing deleted."); return; }
+    if(!confirm(`Delete "${nm}"? This cannot be undone.`)) return;
+    btn.disabled=true; await deleteTeam(id); renderAdmin();
+  }));
+}
+
+function exportCsv(teams){
+  const head=["Team","Name","Email","Phone","Captain","Riders","Submitted"];
+  const lines=[head.join(",")].concat(teams.map(t=>{
+    const cells=[t.team,t.name,t.email,t.phone,t.captain,(t.riders||[]).join(" | "),new Date(t.ts).toLocaleString()];
+    return cells.map(c=>`"${String(c||"").replace(/"/g,'""')}"`).join(",");
+  }));
+  const blob=new Blob([lines.join("\n")],{type:"text/csv"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="ventum_tdf_fantasy_contacts.csv";a.click();URL.revokeObjectURL(a.href);
+}
+
+/* ---------- masthead ---------- */
+function masthead(){return `<div class="mast"><div class="bars"><span class="b-jaune"></span><span class="b-vert"></span><span class="b-pois"></span><span class="b-blanc"></span></div>
+  <h1>Ventum House<small>Tour de France · Fantasy League ’26</small></h1></div>`;}
+</script>
