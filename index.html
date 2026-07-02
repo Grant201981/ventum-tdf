@@ -3,7 +3,7 @@
   Views via URL hash:
     #/       -> Build your team (phone entry; what the QR points to)
     #/board  -> Big-screen leaderboard (open on the store screen)
-    #/admin  -> Staff: lock entries, score riders, export contacts (PIN protected)
+    #/crew-317  -> Staff (secret path): lock entries, score riders, export contacts (PIN protected)
 
   Entries live in SHARED storage so all phones + the big screen share one
   leaderboard. Contact details (email/phone) are captured but NEVER shown on
@@ -236,7 +236,7 @@ function manageHTML(teams){
 function route(){return location.hash.replace(/^#\/?/,"").split("?")[0]||""}
 let boardTimer=null; function clearTimers(){if(boardTimer){clearInterval(boardTimer);boardTimer=null}}
 window.addEventListener("hashchange",render); if(document.readyState==="loading"){window.addEventListener("DOMContentLoaded",render);}else{render();}
-async function render(){clearTimers();const r=route();if(r==="board")return renderBoard();if(r==="admin")return renderAdmin();return renderEntry();}
+async function render(){clearTimers();const r=route();if(r==="board")return renderBoard();if(r==="crew-317")return renderAdmin();return renderEntry();}
 
 /* ===================== VIEW 1 — TEAM BUILDER ===================== */
 function riderOptions(role){
@@ -297,7 +297,7 @@ async function renderEntry(){
       <div class="msg" id="msg"></div>
     </div>`}
 
-    <div class="navmini"><a href="#/board">📺 Leaderboard</a><a href="#/admin">⚙ Admin</a></div>
+    <div class="navmini"><a href="#/board">📺 Leaderboard</a></div>
     <div class="footnote">Ventum House · Be your fastest self.</div>
   </div>`;
 
@@ -384,7 +384,7 @@ async function renderBoard(){
     <div class="board-head"><div>${masthead(true)}<h2>Fantasy <em>Leaderboard</em></h2></div>
     <div class="board-status">Loading…</div></div>
     <div class="empty">Loading standings…</div>
-    <div class="navmini" style="justify-content:flex-start;margin-top:24px"><a href="#/">＋ Build a team</a><a href="#/admin">⚙ Admin</a></div>
+    <div class="navmini" style="justify-content:flex-start;margin-top:24px"><a href="#/">＋ Build a team</a></div>
   </div>`;
   await drawBoard();
   boardTimer=setInterval(drawBoard,20000);
@@ -412,7 +412,7 @@ async function drawBoard(){
     <div class="board-head"><div>${masthead(true)}<h2>Fantasy <em>Leaderboard</em></h2></div>
     <div class="board-status">${status}<br><span style="font-size:.8em">${ranked.length} teams · updated ${now}</span></div></div>
     ${body}
-    <div class="navmini" style="justify-content:flex-start;margin-top:24px"><a href="#/">＋ Build a team</a><a href="#/admin">⚙ Admin</a></div>
+    <div class="navmini" style="justify-content:flex-start;margin-top:24px"><a href="#/">＋ Build a team</a></div>
   </div>`;
 }
 
