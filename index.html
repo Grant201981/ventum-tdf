@@ -141,20 +141,29 @@ const SLOTS = [
   {role:"allround", n:1, cls:"blue",  label:"All-rounder"},
 ];
 
-/* Rider pool — name, role, price (credits). Refresh names/prices nearer the race. */
+/* Rider pool — confirmed 2026 Tour de France field (refreshed 1 July). name, role, price (credits). */
 const RIDERS = [
-  // GC
-  {n:"Tadej Pogačar",role:"gc",p:34},{n:"Jonas Vingegaard",role:"gc",p:32},{n:"Remco Evenepoel",role:"gc",p:28},
-  {n:"Primož Roglič",role:"gc",p:22},{n:"João Almeida",role:"gc",p:18},{n:"Carlos Rodríguez",role:"gc",p:16},{n:"Felix Gall",role:"gc",p:14},
+  // GC leaders
+  {n:"Tadej Pogačar",role:"gc",p:34},{n:"Jonas Vingegaard",role:"gc",p:32},{n:"Remco Evenepoel",role:"gc",p:27},
+  {n:"Juan Ayuso",role:"gc",p:20},{n:"Paul Seixas",role:"gc",p:18},{n:"Florian Lipowitz",role:"gc",p:16},{n:"Isaac del Toro",role:"gc",p:15},
+  {n:"Jai Hindley",role:"gc",p:14},{n:"Antonio Tiberi",role:"gc",p:13},{n:"Ben O'Connor",role:"gc",p:13},{n:"Tobias Johannessen",role:"gc",p:12},{n:"Jordan Jegat",role:"gc",p:11},
   // Climbers
-  {n:"Lenny Martinez",role:"climber",p:16},{n:"Adam Yates",role:"climber",p:15},{n:"Tom Pidcock",role:"climber",p:14},
-  {n:"Santiago Buitrago",role:"climber",p:13},{n:"Enric Mas",role:"climber",p:12},{n:"Egan Bernal",role:"climber",p:12},{n:"Ben O'Connor",role:"climber",p:11},
+  {n:"Lenny Martínez",role:"climber",p:16},{n:"Richard Carapaz",role:"climber",p:15},{n:"Tom Pidcock",role:"climber",p:15},
+  {n:"Adam Yates",role:"climber",p:14},{n:"Sepp Kuss",role:"climber",p:13},{n:"Aurélien Paret-Peintre",role:"climber",p:12},
+  {n:"Guillaume Martin",role:"climber",p:12},{n:"Matthew Riccitello",role:"climber",p:11},{n:"Michael Storer",role:"climber",p:11},
+  {n:"Ion Izagirre",role:"climber",p:11},{n:"Sergio Higuita",role:"climber",p:10},{n:"Georg Steinhauser",role:"climber",p:10},
+  {n:"Nicolas Prodhomme",role:"climber",p:10},{n:"Harold Tejada",role:"climber",p:9},{n:"Simone Velasco",role:"climber",p:9},
   // Sprinters
-  {n:"Wout van Aert",role:"sprinter",p:24},{n:"Jasper Philipsen",role:"sprinter",p:22},{n:"Jonathan Milan",role:"sprinter",p:21},
-  {n:"Tim Merlier",role:"sprinter",p:20},{n:"Biniam Girmay",role:"sprinter",p:18},{n:"Dylan Groenewegen",role:"sprinter",p:14},{n:"Arnaud De Lie",role:"sprinter",p:13},
+  {n:"Jasper Philipsen",role:"sprinter",p:22},{n:"Tim Merlier",role:"sprinter",p:21},{n:"Biniam Girmay",role:"sprinter",p:18},
+  {n:"Olav Kooij",role:"sprinter",p:18},{n:"Kaden Groves",role:"sprinter",p:16},{n:"Arnaud De Lie",role:"sprinter",p:14},
+  {n:"Magnus Cort",role:"sprinter",p:13},{n:"Pascal Ackermann",role:"sprinter",p:12},{n:"Milan Fretin",role:"sprinter",p:12},
+  {n:"Søren Wærenskjold",role:"sprinter",p:11},{n:"Max Kanter",role:"sprinter",p:10},{n:"Jonas Abrahamsen",role:"sprinter",p:10},{n:"Jake Stewart",role:"sprinter",p:9},
   // All-rounders
-  {n:"Mathieu van der Poel",role:"allround",p:24},{n:"Mads Pedersen",role:"allround",p:18},{n:"Julian Alaphilippe",role:"allround",p:12},
-  {n:"Ben Healy",role:"allround",p:11},{n:"Kévin Vauquelin",role:"allround",p:10},{n:"Neilson Powless",role:"allround",p:9},
+  {n:"Mathieu van der Poel",role:"allround",p:24},{n:"Mads Pedersen",role:"allround",p:18},{n:"Matej Mohorič",role:"allround",p:14},
+  {n:"Michael Matthews",role:"allround",p:13},{n:"Ben Healy",role:"allround",p:13},{n:"Matteo Jorgenson",role:"allround",p:12},
+  {n:"Julian Alaphilippe",role:"allround",p:12},{n:"Tiesj Benoot",role:"allround",p:11},{n:"Brandon McNulty",role:"allround",p:11},
+  {n:"Mathias Skjelmose",role:"allround",p:11},{n:"Matteo Trentin",role:"allround",p:10},{n:"Quinn Simmons",role:"allround",p:10},
+  {n:"Kasper Asgreen",role:"allround",p:10},{n:"Toms Skujins",role:"allround",p:9},
 ];
 const PRICE = Object.fromEntries(RIDERS.map(r=>[r.n,r.p]));
 const ROLECLS = Object.fromEntries(SLOTS.map(s=>[s.role,s.cls]));
@@ -205,7 +214,7 @@ function teamScore(t,riderPoints){
 function rankTeams(teams,cfg){
   const rp = cfg.scored ? cfg.riderPoints : null;
   return teams.map(t=>({...t,_score:teamScore(t,rp)}))
-    .sort((a,b)=>{ if(a._score==null||b._score==null) return (a.team||"").localeCompare(b.team||""); return b._score-a._score; });
+    .sort((a,b)=>{ if(a._score==null||b._score==null) return (a.team||"").localeCompare(b.team||""); return (b._score-a._score) || ((a.ts||0)-(b.ts||0)); });
 }
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const firstLast=n=>{const p=(n||"").trim().split(/\s+/);return p.length>1?p[0]+" "+p[p.length-1][0]+".":n;};
@@ -213,7 +222,7 @@ function standingsHTML(teams,rp){
   if(!teams.length) return `<div class="hint">No teams entered yet.</div>`;
   const has=rp&&Object.keys(rp).length>0;
   const ranked=teams.map(t=>{let s=0;t.riders.forEach(n=>s+=Number(rp[n]||0));if(t.captain)s+=Number(rp[t.captain]||0);return {t,s};})
-    .sort((a,b)=>b.s-a.s||(a.t.team||"").localeCompare(b.t.team||""));
+    .sort((a,b)=>b.s-a.s||((a.t.ts||0)-(b.t.ts||0)));
   return ranked.map((r,i)=>`<div class="stat"><span><b style="color:var(--jaune);font-family:'Anton';margin-right:8px">${i+1}</b>${esc(r.t.team)} <span style="color:var(--muted);font-size:.8em">${esc(firstLast(r.t.name))}</span></span><b>${has?r.s:"—"}</b></div>`).join("");
 }
 
@@ -252,6 +261,17 @@ async function renderEntry(){
       <div class="kicker">Ventum House · 4–26 July</div>
       <h2>Build Your <em>Team</em></h2>
       <p>Pick a 6-rider squad inside a ${BUDGET}-credit cap, name your captain for double points, and ride up the leaderboard all Tour long — with prizes for the top finishers.</p>
+    </div>
+
+    <div class="card">
+      <div class="sec-title"><span class="dot vert"></span>The rules</div>
+      <ul style="margin:6px 0 2px;padding-left:20px;line-height:1.5;font-size:.86rem">
+        <li style="margin-bottom:7px">Pick all <b>6 riders</b> — 1 leader, 2 climbers, 2 sprinters, 1 all-rounder.</li>
+        <li style="margin-bottom:7px">Stay within the <b>${BUDGET}-credit cap</b> — you can spend less, but never more.</li>
+        <li style="margin-bottom:7px">Name a <b>captain</b>; they score <b>double points</b>.</li>
+        <li style="margin-bottom:7px">One entry per team, <b>locked for the whole Tour</b> — no changes after you lock in.</li>
+        <li>If two teams finish level on points, the team that <b>entered first</b> wins.</li>
+      </ul>
     </div>
 
     ${cfg.locked?`<div class="locked-banner">🔒 Teams are locked — the race is on. Follow the leaderboard on the big screen in store.</div>`:`
@@ -301,16 +321,17 @@ function recalc(){
   // duplicates within a role
   const dup = picks.length!==new Set(picks).size;
 
-  // prevent the same rider being picked in another same-role slot:
-  // disable an option in a sibling select if it's already chosen elsewhere
+  // remove a rider from the OTHER same-role slot once picked (so the two slots never overlap)
   const byRole={};
   document.querySelectorAll(".pick").forEach(sel=>{ (byRole[sel.dataset.role]=byRole[sel.dataset.role]||[]).push(sel); });
   Object.values(byRole).forEach(group=>{
-    const chosen=group.map(s=>s.value).filter(Boolean);
-    group.forEach(sel=>{ Array.from(sel.options).forEach(opt=>{
-      if(!opt.value) return;
-      opt.disabled = chosen.includes(opt.value) && sel.value!==opt.value;
-    }); });
+    group.forEach(sel=>{
+      const taken=group.filter(s=>s!==sel).map(s=>s.value).filter(Boolean);
+      const keep=sel.value;
+      const opts=RIDERS.filter(r=>r.role===sel.dataset.role && (!taken.includes(r.n)||r.n===keep));
+      sel.innerHTML=`<option value="">Choose…</option>`+opts.map(r=>`<option value="${esc(r.n)}">${esc(r.n)} — ${r.p}cr</option>`).join("");
+      sel.value=keep;
+    });
   });
 
   // rebuild captain options from chosen riders
